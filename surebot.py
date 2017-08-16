@@ -49,16 +49,17 @@ class SureBot:
         COMMENTS: [],
         UNFOLLOWS: []
     }
+    __UNFOLLOW_INDEX = 0
 
-    def __init__(self, user_name='', password=''):
+    def __init__(self, username='', password=''):
         # options
         self.start_time = datetime.datetime.now()
-        self.user_name = user_name
+        self.username = username
         self.user_key = password
         self.my_profile = None
 
         # attempt login
-        self.bot = InstaBot(login=self.user_name,
+        self.bot = InstaBot(login=self.username,
                             password=self.user_key, log_mod=0)
         if self.bot.login_status != True:
             print('Login failed')
@@ -76,29 +77,29 @@ class SureBot:
         self.bot.cleanup()
 
     # get user's profile
-    def get_user_profile(self, user_name):
+    def get_user_profile(self, username):
         self.__sleep()
-        print("GET USER PROFILE ", user_name)
+        print("GET USER PROFILE ", username)
         response = self.bot.s.get(
-            SureBot.ENDPOINTS['user_profile'].format(user_name))
+            SureBot.ENDPOINTS['user_profile'].format(username))
         if response.status_code != 200:
             print("User '{0}' not found: {1}".format(
-                user_name, response.status_code))
+                username, response.status_code))
             return None
 
         return json.loads(response.text)
 
     # get user's followers
-    def get_user_followers(self, user_name, max_followers=20):
+    def get_user_followers(self, username, max_followers=20):
         '''
         when max_followers is <= 0, means unlimited
         '''
         self.__sleep()
-        print("GET USER FOLLOWERS ", user_name)
-        user = self.get_user_profile(user_name)
+        print("GET USER FOLLOWERS ", username)
+        user = self.get_user_profile(username)
         if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
             print("User '{0}' not found, or is a private account, or they've blocked you!".format(
-                user_name))
+                username))
             return
         current_user_followers = []
         end_cursor = None
@@ -114,18 +115,18 @@ class SureBot:
             response = self.bot.s.get(self.__build_query(params))
             if response.status_code != 200:
                 print("Followers for '{0}' could not be fetched: {1}".format(
-                    user_name, response.status_code))
+                    username, response.status_code))
                 return
 
             data = json.loads(response.text)
             if data['status'] != 'ok':
                 print(
-                    "Unable to fetch followers for '{0}'".format(user_name))
+                    "Unable to fetch followers for '{0}'".format(username))
                 return
 
             data = data['data']
             if data['user']['edge_followed_by']['count'] == 0:
-                print("User '{0}' has no followers".format(user_name))
+                print("User '{0}' has no followers".format(username))
                 return
 
             # go on with this user
@@ -142,16 +143,16 @@ class SureBot:
         return current_user_followers[:max_followers] if max_followers > 0 else current_user_followers
 
     # get user's feed
-    def get_user_feed(self, user_name, max_media_count=20):
+    def get_user_feed(self, username, max_media_count=20):
         '''
         when max_media_count is <= 0, means unlimited
         '''
         self.__sleep()
-        print("Getting feed for \t", user_name)
-        user = self.get_user_profile(user_name)
+        print("Getting feed for \t", username)
+        user = self.get_user_profile(username)
         if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
             print("User '{0}' not found, or is a private account, or they've blocked you!".format(
-                user_name))
+                username))
             return
 
         current_user_media = []
@@ -167,18 +168,18 @@ class SureBot:
             response = self.bot.s.get(self.__build_query(params, SureBot.MEDIA))
             if response.status_code != 200:
                 print("Media feed for '{0}' could not be fetched: {1}".format(
-                    user_name, response.status_code))
+                    username, response.status_code))
                 return
 
             data = json.loads(response.text)
             if data['status'] != 'ok':
                 print(
-                    "Unable to fetch media feed for '{0}'".format(user_name))
+                    "Unable to fetch media feed for '{0}'".format(username))
                 return
 
             data = data['data']
             if data['user']['edge_owner_to_timeline_media']['count'] == 0:
-                print("User '{0}' has no media uploaded".format(user_name))
+                print("User '{0}' has no media uploaded".format(username))
                 return
 
             # go on with this media feed
@@ -259,12 +260,29 @@ class SureBot:
     def safe_limits(self, which):
         return len(SureBot.__STATS[which]) < SureBot.LIMITS[which]
 
+    # unfollows a user
+    def unfollow(self, user):
+        """ Send http request to unfollow """
+        if self.bot.login_status:
+            url_unfollow = self.bot.url_unfollow % (user['user_id'])
+            try:
+                unfollow = self.bot.s.post(url_unfollow)
+                if unfollow.status_code == 200:
+                    SureBot.__STATS[SureBot.UNFOLLOWS].append(user)
+                    self.bot.unfollow_counter += 1
+                    log_string = "Unfollow: %s #%i." % (user['username'],
+                                                        self.unfollow_counter)
+                    self.write_log(log_string)
+                return unfollow
+            except:
+                self.write_log("Exept on unfollow!")
+        return False
     # interact with user's followers
-    def interact(self, user_name, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
-        user_feed = self.get_user_feed(user_name, max_likes)
+    def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
+        user_feed = self.get_user_feed(username, max_likes)
         self.feed_liker(user_feed)
 
-        followers = self.get_user_followers(user_name, max_followers)
+        followers = self.get_user_followers(username, max_followers)
         # calculate follow_rate
         f = follow_rate * len(followers)
         for follower in followers:
