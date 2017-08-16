@@ -111,7 +111,7 @@ class SureBot:
                 params['after'] = end_cursor
                 # params['first'] = 10
 
-            response = self.bot.s.get(self._build_query(params))
+            response = self.bot.s.get(self.__build_query(params))
             if response.status_code != 200:
                 print("Followers for '{0}' could not be fetched: {1}".format(
                     user_name, response.status_code))
@@ -147,7 +147,7 @@ class SureBot:
         when max_media_count is <= 0, means unlimited
         '''
         self.__sleep()
-        print("GET USER FEED ", user_name)
+        print("Getting feed for \t", user_name)
         user = self.get_user_profile(user_name)
         if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
             print("User '{0}' not found, or is a private account, or they've blocked you!".format(
@@ -164,7 +164,7 @@ class SureBot:
             if end_cursor:
                 params['after'] = end_cursor
 
-            response = self.bot.s.get(self._build_query(params, SureBot.MEDIA))
+            response = self.bot.s.get(self.__build_query(params, SureBot.MEDIA))
             if response.status_code != 200:
                 print("Media feed for '{0}' could not be fetched: {1}".format(
                     user_name, response.status_code))
@@ -246,7 +246,7 @@ class SureBot:
     # get information about a media item
     def get_media_info(self, media_code):
         self.__sleep()
-        print("GET MEDIA INFO ", media_code)
+        print("Getting media info for \t", media_code)
         response = self.bot.s.get(
             SureBot.ENDPOINTS['media'].format(media_code))
         if response.status_code != 200:
@@ -306,7 +306,7 @@ class SureBot:
                            'media_type': 'video' if medium['is_video'] else 'photo'})
         return useful
 
-    def _build_query(self, params, query=FOLLOWERS):
+    def __build_query(self, params, query=FOLLOWERS):
         data = urllib.urlencode({"variables": json.dumps(params)})
         url = data.encode('utf-8')
         return '{3}{0}?query_id={1}&{2}'.format(SureBot.ENDPOINTS['graphql'],
