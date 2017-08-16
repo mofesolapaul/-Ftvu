@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function, absolute_import
+from __future__ import print_function, absolute_import, division
 
 import os
 import sys
@@ -43,7 +43,7 @@ class SureBot:
         'graphql': '/graphql/query/',
         'media': 'https://www.instagram.com/p/{0}/?__a=1'
     }
-    _STATS = {
+    __STATS = {
         LIKES: [],
         FOLLOWS: [],
         COMMENTS: [],
@@ -69,15 +69,15 @@ class SureBot:
         running_time = datetime.datetime.now() - self.start_time
         print('\nSureBot out 😎\n-----------------')
         print('Running time: {0}\nTotal likes: {1}\nTotal follows: {2}\nTotal unfollows: {3}\nTotal comments: {4}\n'.format(
-            running_time, len(self._STATS[SureBot.LIKES]),
-            len(self._STATS[SureBot.FOLLOWS]),
-            len(self._STATS[SureBot.UNFOLLOWS]),
-            len(self._STATS[SureBot.COMMENTS])))
+            running_time, len(self.__STATS[SureBot.LIKES]),
+            len(self.__STATS[SureBot.FOLLOWS]),
+            len(self.__STATS[SureBot.UNFOLLOWS]),
+            len(self.__STATS[SureBot.COMMENTS])))
         self.bot.cleanup()
 
     # get user's profile
     def get_user_profile(self, user_name):
-        self._sleep()
+        self.__sleep()
         print("GET USER PROFILE ", user_name)
         response = self.bot.s.get(
             SureBot.ENDPOINTS['user_profile'].format(user_name))
@@ -93,7 +93,7 @@ class SureBot:
         '''
         when max_followers is <= 0, means unlimited
         '''
-        self._sleep()
+        self.__sleep()
         print("GET USER FOLLOWERS ", user_name)
         user = self.get_user_profile(user_name)
         if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
@@ -105,7 +105,7 @@ class SureBot:
         has_next = True
 
         while (len(current_user_followers) < max_followers and has_next) or (has_next and max_followers <= 0):
-            self._sleep()
+            self.__sleep()
             params = {'id': user['user']['id'], 'first': 20}
             if end_cursor:
                 params['after'] = end_cursor
@@ -132,7 +132,7 @@ class SureBot:
             has_next = data['user']['edge_followed_by']['page_info']['has_next_page']
             end_cursor = data['user']['edge_followed_by']['page_info']['end_cursor']
 
-            filtered = self._filter_followers(
+            filtered = self.__filter_followers(
                 data['user']['edge_followed_by']['edges'])
             current_user_followers += filtered if filtered else []
 
@@ -146,7 +146,7 @@ class SureBot:
         '''
         when max_media_count is <= 0, means unlimited
         '''
-        self._sleep()
+        self.__sleep()
         print("GET USER FEED ", user_name)
         user = self.get_user_profile(user_name)
         if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
@@ -159,7 +159,7 @@ class SureBot:
         has_next = True
 
         while (len(current_user_media) < max_media_count and has_next) or (has_next and max_media_count <= 0):
-            self._sleep()
+            self.__sleep()
             params = {'id': user['user']['id'], 'first': 12}
             if end_cursor:
                 params['after'] = end_cursor
@@ -186,7 +186,7 @@ class SureBot:
             end_cursor = data['user']['edge_owner_to_timeline_media']['page_info']['end_cursor']
 
             # pick em media
-            filtered = self._filter_media(
+            filtered = self.__filter_media(
                 data['user']['edge_owner_to_timeline_media']['edges'])
             current_user_media += filtered if filtered else []
 
@@ -202,7 +202,7 @@ class SureBot:
             return
 
         for media in feed:
-            self._sleep()
+            self.__sleep()
             self.like(media)
 
     # perform a like operation
@@ -217,7 +217,7 @@ class SureBot:
             url_likes = self.bot.url_likes % (media['media_id'])
             try:
                 like = self.bot.s.post(url_likes)
-                SureBot._STATS[SureBot.LIKES].append(media)
+                SureBot.__STATS[SureBot.LIKES].append(media)
             except:
                 print("Like operation failed!")
                 like = 0
@@ -237,7 +237,7 @@ class SureBot:
                 follow = self.bot.s.post(url_follow)
                 if follow.status_code == 200:
                     user['unfollow_at'] = time.time() + (2 * 60)
-                    SureBot._STATS[SureBot.FOLLOWS].append(user)
+                    SureBot.__STATS[SureBot.FOLLOWS].append(user)
                 return follow
             except:
                 print("Unable to follow!")
@@ -245,7 +245,7 @@ class SureBot:
 
     # get information about a media item
     def get_media_info(self, media_code):
-        self._sleep()
+        self.__sleep()
         print("GET MEDIA INFO ", media_code)
         response = self.bot.s.get(
             SureBot.ENDPOINTS['media'].format(media_code))
@@ -257,7 +257,7 @@ class SureBot:
 
     # checks that bot is still within safe operation limits
     def safe_limits(self, which):
-        return len(SureBot._STATS[which]) < SureBot.LIMITS[which]
+        return len(SureBot.__STATS[which]) < SureBot.LIMITS[which]
 
     # interact with user's followers
     def interact(self, user_name, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
@@ -274,7 +274,7 @@ class SureBot:
     # Privates ----------
 
     # filter followers stream based on certain criteria
-    def _filter_followers(self, followers):
+    def __filter_followers(self, followers):
         useful = []
         for follower in followers:
             user = self.get_user_profile(follower['node']['username'])
@@ -294,7 +294,7 @@ class SureBot:
         return useful
 
     # filter media stream based on certain criteria
-    def _filter_media(self, media):
+    def __filter_media(self, media):
         useful = []
         for medium in media:
             medium = medium['node']
@@ -314,7 +314,7 @@ class SureBot:
                                                 SureBot.ENDPOINTS['insta_home'])
 
     # random time sleeper
-    def _sleep(self):
+    def __sleep(self):
         s = random.choice(range(1, 4))
         time.sleep(s)
 
