@@ -49,7 +49,7 @@ class SureBot:
         COMMENTS: [],
         UNFOLLOWS: []
     }
-    __UNFOLLOW_INDEX = 0
+    __UNFOLLOW_CURSOR = 0
 
     def __init__(self, username='', password=''):
         # options
@@ -237,7 +237,7 @@ class SureBot:
             try:
                 follow = self.bot.s.post(url_follow)
                 if follow.status_code == 200:
-                    user['unfollow_at'] = time.time() + (2 * 60)
+                    user['unfollow_at'] = SureBot.__offset_time(1 * 60)[0]
                     SureBot.__STATS[SureBot.FOLLOWS].append(user)
                 return follow
             except:
@@ -260,27 +260,45 @@ class SureBot:
     def safe_limits(self, which):
         return len(SureBot.__STATS[which]) < SureBot.LIMITS[which]
 
+    # unfollow routine
+    def try_unfollow(self):
+        if SureBot.__UNFOLLOW_CURSOR == len(SureBot.FOLLOWS):
+            return
+        current_user = dict(SureBot.FOLLOWS[SureBot.__UNFOLLOW_CURSOR])
+        if time.time() < current_user['unfollow_at']:
+            return
+        if not self.unfollow(current_user) and not current_user.has_key('failed'):
+            current_user['failed'] = True
+            retry = self.__offset_time(range(15,30))
+            current_user['unfollow_at'] = retry[0]
+            print('Will retry in {0} secs'.format(retry[1]))
+        else:
+            SureBot.__UNFOLLOW_CURSOR += 1
+            if (SureBot.__UNFOLLOW_CURSOR < len(SureBot.FOLLOWS)):
+                nxt = self.__offset_time(range(15,30))
+                nxt_user = dict(SureBot.FOLLOWS[SureBot.__UNFOLLOW_CURSOR])
+                if time.time() <= nxt_user['unfollow_at']:
+                    nxt_user['unfollow_at'] = nxt[0]
+        pass
     # unfollows a user
     def unfollow(self, user):
         """ Send http request to unfollow """
         if self.bot.login_status:
+            print('Unfollowing @{0}'.format(user['username']))
             url_unfollow = self.bot.url_unfollow % (user['user_id'])
             try:
                 unfollow = self.bot.s.post(url_unfollow)
                 if unfollow.status_code == 200:
                     SureBot.__STATS[SureBot.UNFOLLOWS].append(user)
-                    self.bot.unfollow_counter += 1
-                    log_string = "Unfollow: %s #%i." % (user['username'],
-                                                        self.unfollow_counter)
-                    self.write_log(log_string)
-                return unfollow
+                    SureBot.__UNFOLLOW_CURSOR += 1
+                return True
             except:
-                self.write_log("Exept on unfollow!")
+                print("Unable to follow!")
         return False
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
-        user_feed = self.get_user_feed(username, max_likes)
-        self.feed_liker(user_feed)
+        # user_feed = self.get_user_feed(username, max_likes)
+        # self.feed_liker(user_feed)
 
         followers = self.get_user_followers(username, max_followers)
         # calculate follow_rate
@@ -305,6 +323,9 @@ class SureBot:
             if user['follows_viewer'] or user['has_requested_viewer']:
                 print("Skipping {0}, they follow you already".format(
                     user['username']))
+                continue
+            if user['username'] == self.username:
+                print("Skipping your own account")
                 continue
             useful.append(
                 {'username': user['username'], 'user_id': user['id']})
@@ -335,4 +356,9 @@ class SureBot:
     def __sleep(self):
         s = random.choice(range(1, 4))
         time.sleep(s)
+    
+    # adds offset seconds to time, plus random offset
+    def __offset_time(self, offset = 0):
+        offset = offset + random.choice(range(0, 15))
+        return int(time.time()) + offset, offset
 
