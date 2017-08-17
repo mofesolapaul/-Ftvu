@@ -189,7 +189,6 @@ class SureBot:
                 params['after'] = end_cursor
 
             query = self.__build_query(params, SureBot.MEDIA)
-            print(query)
             response = self.bot.s.get(query)
             if response.status_code != 200:
                 print("Media feed for @{} could not be fetched: {} ({})".format(
