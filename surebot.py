@@ -9,6 +9,7 @@ import json
 import urllib
 import random
 import datetime
+import atexit
 
 sys.path.append(os.path.join(sys.path[0], 'src'))
 from instabot import InstaBot
@@ -58,6 +59,9 @@ class SureBot:
         self.user_key = password
         self.my_profile = None
 
+        # at exit
+        atexit.register(self.die)
+
         # attempt login
         self.bot = InstaBot(login=self.username,
                             password=self.user_key, log_mod=0)
@@ -79,7 +83,7 @@ class SureBot:
     # get user's profile
     def get_user_profile(self, username, silent = False):
         self.__sleep()
-        if not silent: print("GET USER PROFILE ", username)
+        if not silent: print("GET USER PROFILE @{0}".format(username))
         response = self.bot.s.get(
             SureBot.ENDPOINTS['user_profile'].format(username))
         if response.status_code != 200:
@@ -95,10 +99,10 @@ class SureBot:
         when max_followers is <= 0, means unlimited
         '''
         self.__sleep()
-        print("GET USER FOLLOWERS ", username)
+        print("GET USER FOLLOWERS @{0}".format(username))
         user = self.get_user_profile(username, True)
         if not self.__can_interact(user):
-            print("User '{0}' not found, or is a private account, or they've blocked you!".format(
+            print("@{0} not found, or is a private account, or they've blocked you!".format(
                 username))
             return
         current_user_followers = []
@@ -114,19 +118,19 @@ class SureBot:
 
             response = self.bot.s.get(self.__build_query(params))
             if response.status_code != 200:
-                print("Followers for '{0}' could not be fetched: {1}".format(
+                print("Followers for @{0} could not be fetched: {1}".format(
                     username, response.status_code))
                 return
 
             data = json.loads(response.text)
             if data['status'] != 'ok':
                 print(
-                    "Unable to fetch followers for '{0}'".format(username))
+                    "Unable to fetch followers for @{0}".format(username))
                 return
 
             data = data['data']
             if data['user']['edge_followed_by']['count'] == 0:
-                print("User '{0}' has no followers".format(username))
+                print("@{0} has no followers".format(username))
                 return
 
             # go on with this user
@@ -151,7 +155,7 @@ class SureBot:
         print("Getting feed for \t", username)
         user = self.get_user_profile(username, True)
         if not self.__can_interact(user):
-            print("User '{0}' not found, or is a private account, or they've blocked you!".format(
+            print("@{0} not found, or is a private account, or they've blocked you!".format(
                 username))
             return
 
@@ -167,19 +171,19 @@ class SureBot:
 
             response = self.bot.s.get(self.__build_query(params, SureBot.MEDIA))
             if response.status_code != 200:
-                print("Media feed for '{0}' could not be fetched: {1}".format(
+                print("Media feed for @{0} could not be fetched: {1}".format(
                     username, response.status_code))
                 return
 
             data = json.loads(response.text)
             if data['status'] != 'ok':
                 print(
-                    "Unable to fetch media feed for '{0}'".format(username))
+                    "Unable to fetch media feed for @{0}".format(username))
                 return
 
             data = data['data']
             if data['user']['edge_owner_to_timeline_media']['count'] == 0:
-                print("User '{0}' has no media uploaded".format(username))
+                print("@{0} has no media uploaded".format(username))
                 return
 
             # go on with this media feed
@@ -323,12 +327,12 @@ class SureBot:
         for follower in followers:
             user = self.get_user_profile(follower['node']['username'], True)
             if not self.__can_interact(user):
-                print("User '{0}' not found, or is a private account, or they've blocked you!".format(
+                print("@{0} not found, or is a private account, or they've blocked you!".format(
                     follower['node']['username']))
                 continue
 
             if user['follows_viewer'] or user['has_requested_viewer']:
-                print("Skipping {0}, they follow you already".format(
+                print("Skipping @{0}, they follow you already".format(
                     user['username']))
                 continue
             if user['username'] == self.username:
