@@ -77,17 +77,17 @@ class SureBot:
         self.bot.cleanup()
 
     # get user's profile
-    def get_user_profile(self, username):
+    def get_user_profile(self, username, silent = False):
         self.__sleep()
-        print("GET USER PROFILE ", username)
+        if not silent: print("GET USER PROFILE ", username)
         response = self.bot.s.get(
             SureBot.ENDPOINTS['user_profile'].format(username))
         if response.status_code != 200:
-            print("User '{0}' not found: {1}".format(
+            if not silent: print("User '{0}' not found: {1}".format(
                 username, response.status_code))
             return None
 
-        return json.loads(response.text)
+        return json.loads(response.text)['user']
 
     # get user's followers
     def get_user_followers(self, username, max_followers=20):
@@ -96,8 +96,8 @@ class SureBot:
         '''
         self.__sleep()
         print("GET USER FOLLOWERS ", username)
-        user = self.get_user_profile(username)
-        if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
+        user = self.get_user_profile(username, True)
+        if not self.__can_interact(user):
             print("User '{0}' not found, or is a private account, or they've blocked you!".format(
                 username))
             return
@@ -107,7 +107,7 @@ class SureBot:
 
         while (len(current_user_followers) < max_followers and has_next) or (has_next and max_followers <= 0):
             self.__sleep()
-            params = {'id': user['user']['id'], 'first': 20}
+            params = {'id': user['id'], 'first': 20}
             if end_cursor:
                 params['after'] = end_cursor
                 # params['first'] = 10
@@ -149,8 +149,8 @@ class SureBot:
         '''
         self.__sleep()
         print("Getting feed for \t", username)
-        user = self.get_user_profile(username)
-        if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
+        user = self.get_user_profile(username, True)
+        if not self.__can_interact(user):
             print("User '{0}' not found, or is a private account, or they've blocked you!".format(
                 username))
             return
@@ -161,7 +161,7 @@ class SureBot:
 
         while (len(current_user_media) < max_media_count and has_next) or (has_next and max_media_count <= 0):
             self.__sleep()
-            params = {'id': user['user']['id'], 'first': 12}
+            params = {'id': user['id'], 'first': 12}
             if end_cursor:
                 params['after'] = end_cursor
 
@@ -218,7 +218,7 @@ class SureBot:
             url_likes = self.bot.url_likes % (media['media_id'])
             try:
                 like = self.bot.s.post(url_likes)
-                SureBot.__STATS[SureBot.LIKES].append(media)
+                self.__STATS[SureBot.LIKES].append(media)
             except:
                 print("Like operation failed!")
                 like = 0
@@ -232,13 +232,18 @@ class SureBot:
 
         """ Send http request to follow """
         if self.bot.login_status:
-            print('Following @{0}'.format(user['username']))
+            print('Trying to follow @{0}'.format(user['username']))
+            u = self.get_user_profile(user['username'], True)
+            if not self.__can_follow(u):
+                print("Cannot follow @{0}".format(user['username']))
+                return False
+
             url_follow = self.bot.url_follow % (user['user_id'])
             try:
                 follow = self.bot.s.post(url_follow)
                 if follow.status_code == 200:
                     user['unfollow_at'] = SureBot.__offset_time(1 * 60)[0]
-                    SureBot.__STATS[SureBot.FOLLOWS].append(user)
+                    self.__STATS[SureBot.FOLLOWS].append(user)
                 return follow
             except:
                 print("Unable to follow!")
@@ -258,13 +263,13 @@ class SureBot:
 
     # checks that bot is still within safe operation limits
     def safe_limits(self, which):
-        return len(SureBot.__STATS[which]) < SureBot.LIMITS[which]
+        return len(self.__STATS[which]) < SureBot.LIMITS[which]
 
     # unfollow routine
     def try_unfollow(self):
-        if SureBot.__UNFOLLOW_CURSOR == len(SureBot.FOLLOWS):
+        if SureBot.__UNFOLLOW_CURSOR >= len(self.__STATS[SureBot.FOLLOWS]):
             return
-        current_user = dict(SureBot.FOLLOWS[SureBot.__UNFOLLOW_CURSOR])
+        current_user = dict(self.__STATS[SureBot.FOLLOWS][SureBot.__UNFOLLOW_CURSOR])
         if time.time() < current_user['unfollow_at']:
             return
         if not self.unfollow(current_user) and not current_user.has_key('failed'):
@@ -274,12 +279,12 @@ class SureBot:
             print('Will retry in {0} secs'.format(retry[1]))
         else:
             SureBot.__UNFOLLOW_CURSOR += 1
-            if (SureBot.__UNFOLLOW_CURSOR < len(SureBot.FOLLOWS)):
+            if (SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS])):
                 nxt = self.__offset_time(range(15,30))
-                nxt_user = dict(SureBot.FOLLOWS[SureBot.__UNFOLLOW_CURSOR])
+                nxt_user = dict(self.__STATS[SureBot.FOLLOWS][SureBot.__UNFOLLOW_CURSOR])
                 if time.time() <= nxt_user['unfollow_at']:
                     nxt_user['unfollow_at'] = nxt[0]
-        pass
+        
     # unfollows a user
     def unfollow(self, user):
         """ Send http request to unfollow """
@@ -289,12 +294,15 @@ class SureBot:
             try:
                 unfollow = self.bot.s.post(url_unfollow)
                 if unfollow.status_code == 200:
-                    SureBot.__STATS[SureBot.UNFOLLOWS].append(user)
-                    SureBot.__UNFOLLOW_CURSOR += 1
+                    self.__STATS[SureBot.UNFOLLOWS].append(user)
+                else:
+                    print("Unable to follow!")
+                    return False
                 return True
             except:
                 print("Unable to follow!")
         return False
+
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
         # user_feed = self.get_user_feed(username, max_likes)
@@ -303,7 +311,7 @@ class SureBot:
         followers = self.get_user_followers(username, max_followers)
         # calculate follow_rate
         f = follow_rate * len(followers)
-        for follower in followers:
+        for index,follower in enumerate(followers):
             feed = self.get_user_feed(follower['username'], max_likes)
             self.feed_liker(feed)
 
@@ -313,13 +321,12 @@ class SureBot:
     def __filter_followers(self, followers):
         useful = []
         for follower in followers:
-            user = self.get_user_profile(follower['node']['username'])
-            if not user or user['user']['is_private'] or user['user']['has_blocked_viewer']:
+            user = self.get_user_profile(follower['node']['username'], True)
+            if not self.__can_interact(user):
                 print("User '{0}' not found, or is a private account, or they've blocked you!".format(
                     follower['node']['username']))
                 continue
 
-            user = user['user']
             if user['follows_viewer'] or user['has_requested_viewer']:
                 print("Skipping {0}, they follow you already".format(
                     user['username']))
@@ -362,3 +369,10 @@ class SureBot:
         offset = offset + random.choice(range(0, 15))
         return int(time.time()) + offset, offset
 
+    # determine if this person can be followed
+    def __can_follow(self, user):
+        return not user['requested_by_viewer'] and not user['followed_by_viewer'] and not user['username'] == self.username and not user['has_blocked_viewer']
+
+    # determine if this user is one we can interact with
+    def __can_interact(self, user):
+        return not (not user or user['is_private'] or user['has_blocked_viewer'])
