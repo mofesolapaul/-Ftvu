@@ -5,7 +5,7 @@ import os
 import sys
 import time
 import json
-import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 import random
 import datetime
 import atexit
@@ -219,7 +219,7 @@ class SureBot:
                                                     max_media_count] if max_media_count > 0 else current_user_media
 
             print(("Fetched '{0}' of {1} media\n".format(len(current_user_media),
-                                                        data['user']['edge_owner_to_timeline_media']['count'])))
+                                                         data['user']['edge_owner_to_timeline_media']['count'])))
 
         return current_user_media
 
@@ -238,7 +238,7 @@ class SureBot:
         if not self.safe_limits(SureBot.LIKES):
             print('Likes limit reached for the day')
             return
-        
+
         """ Send http request to like media by ID """
         if self.bot.login_status:
             print(('Liking a {0}: #{1}'.format(
@@ -364,7 +364,8 @@ class SureBot:
                 # recursion above, do the digging!
             else:
                 if follower['username'] in SureBot.__BLACKLIST:
-                    print("Interacted with @{0} already, skipping...".format(follower['username']))
+                    print("Interacted with @{0} already, skipping...".format(
+                        follower['username']))
                     return
 
                 feed = self.get_user_feed(follower['username'], max_likes)
