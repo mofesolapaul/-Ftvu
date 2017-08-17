@@ -315,7 +315,6 @@ class InstaBot:
         # Logout
         if (self.login_status):
             self.logout()
-        exit(0)
 
     def get_media_id_by_tag(self, tag):
         """ Get media ID set, by your hashtag """
