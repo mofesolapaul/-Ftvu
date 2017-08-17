@@ -51,6 +51,8 @@ class SureBot:
         COMMENTS: [],
         UNFOLLOWS: []
     }
+    # the blacklist is where everyone we've interacted with goes
+    __BLACKLIST = []
     __UNFOLLOW_CURSOR = 0
     __LIKED = 0
     __FOLLOWED = 0
@@ -128,7 +130,7 @@ class SureBot:
 
         while (len(current_user_followers) < max_followers and has_next) or (has_next and max_followers <= 0):
             self.__sleep()
-            params = {'id': user['id'], 'first': 1}
+            params = {'id': user['id'], 'first': 5}
             if end_cursor:
                 params['after'] = end_cursor
                 # params['first'] = 10
@@ -237,7 +239,7 @@ class SureBot:
         if not self.safe_limits(SureBot.LIKES):
             print('Likes limit reached for the day')
             return
-
+        
         """ Send http request to like media by ID """
         if self.bot.login_status:
             print(('Liking a {0}: #{1}'.format(
@@ -341,7 +343,7 @@ class SureBot:
 
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1, depth=0):
-        print(("\nInteracting with @{0}".format(username)))
+        print("\nInteracting with @{0}".format(username))
         user = self.get_user_profile(username)
         if not self.__can_interact(user):
             print(("Interaction impossible for @{0}".format(username)))
@@ -357,15 +359,21 @@ class SureBot:
         follow_index = self.__to_follow(follow_rate, len(followers))
         for index, follower in enumerate(followers):
             if depth > 0:
+                self.__sleep(True)
                 self.interact(follower['username'], max_likes,
                               max_followers, follow_rate, comment_rate, depth - 1)
                 # recursion above, do the digging!
             else:
+                if follower['username'] in SureBot.__BLACKLIST:
+                    print("Interacted with @{0} already, skipping...".format(follower['username']))
+                    return
+
                 feed = self.get_user_feed(follower['username'], max_likes)
                 self.feed_liker(feed)
                 if (index < follow_index):
                     self.follow(follower)
                 self.try_unfollow()
+                SureBot.__BLACKLIST.append(follower['username'])
             print('\n')
 
     # Privates ----------
@@ -414,7 +422,7 @@ class SureBot:
 
     # random time sleeper
     def __sleep(self):
-        s = random.choice(list(range(1, 4)))
+        s = random.choice(range(1, 4))
         time.sleep(s)
 
     # adds offset seconds to time, plus random offset
