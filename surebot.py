@@ -52,6 +52,10 @@ class SureBot:
         UNFOLLOWS: []
     }
     __UNFOLLOW_CURSOR = 0
+    __LIKED = 0
+    __FOLLOWED = 0
+    __UNFOLLOWED = 0
+    __COMMENTED = 0
 
     def __init__(self, username='', password=''):
         # options
@@ -85,10 +89,10 @@ class SureBot:
         running_time = datetime.datetime.now() - self.start_time
         print('\nSureBot out 😎\n-----------------')
         print('Running time: {0}\nTotal likes: {1}\nTotal follows: {2}\nTotal unfollows: {3}\nTotal comments: {4}\n'.format(
-            running_time, len(self.__STATS[SureBot.LIKES]),
-            len(self.__STATS[SureBot.FOLLOWS]),
-            len(self.__STATS[SureBot.UNFOLLOWS]),
-            len(self.__STATS[SureBot.COMMENTS])))
+            running_time, SureBot.__LIKED,
+            SureBot.__FOLLOWED,
+            SureBot.__UNFOLLOWED,
+            SureBot.__COMMENTED))
         self.bot.cleanup()
 
     # get user's profile
@@ -236,11 +240,13 @@ class SureBot:
 
         """ Send http request to like media by ID """
         if self.bot.login_status:
-            print('Liking a {0}'.format(media['media_type']))
+            print('Liking a {0}: #{1}'.format(
+                media['media_type'], SureBot.__LIKED + 1))
             url_likes = self.bot.url_likes % (media['media_id'])
             try:
                 like = self.bot.s.post(url_likes)
                 self.__STATS[SureBot.LIKES].append(media)
+                SureBot.__LIKED += 1
             except Exception as e:
                 print("Like operation failed! {0}".format(e.message))
                 like = 0
@@ -254,7 +260,8 @@ class SureBot:
 
         """ Send http request to follow """
         if self.bot.login_status:
-            print('Trying to follow @{0}'.format(user['username']))
+            print('Trying to follow @{0}: #{1}'.format(
+                user['username'], SureBot.__FOLLOWED + 1))
             u = self.get_user_profile(user['username'], True)
             if not self.__can_follow(u):
                 print("Cannot follow @{0}".format(user['username']))
@@ -267,6 +274,7 @@ class SureBot:
                 if follow.status_code == 200:
                     user['unfollow_at'] = self.__offset_time(1 * 60)[0]
                     self.__STATS[SureBot.FOLLOWS].append(user)
+                    SureBot.__FOLLOWED += 1
                 return follow
             except Exception as e:
                 print("Unable to follow! {0}".format(e.message))
@@ -304,6 +312,7 @@ class SureBot:
             print('Will retry in {0} secs'.format(retry[1]))
         else:
             SureBot.__UNFOLLOW_CURSOR += 1
+            SureBot.__UNFOLLOWED += 1
             if (SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS])):
                 nxt = self.__offset_time(random.choice(range(15, 30)))
                 nxt_user = dict(
@@ -315,7 +324,8 @@ class SureBot:
     def unfollow(self, user):
         """ Send http request to unfollow """
         if self.bot.login_status:
-            print('Unfollowing @{0}'.format(user['username']))
+            print('Unfollowing @{0}: #{1}'.format(
+                user['username'], SureBot.__UNFOLLOWED + 1))
             url_unfollow = self.bot.url_unfollow % (user['user_id'])
             try:
                 unfollow = self.bot.s.post(url_unfollow)
@@ -330,7 +340,7 @@ class SureBot:
         return False
 
     # interact with user's followers
-    def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
+    def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1, depth=0):
         user = self.get_user_profile(username)
         if not self.__can_interact(user):
             print("Interaction impossible for @{0}".format(username))
@@ -345,6 +355,9 @@ class SureBot:
         # calculate follow_rate
         follow_index = self.__to_follow(follow_rate, len(followers))
         for index, follower in enumerate(followers):
+            self.interact(follower['username'], max_likes,
+                          max_followers, follow_rate, comment_rate, depth - 1)
+            # recursion above, do the digging!
             feed = self.get_user_feed(follower['username'], max_likes)
             self.feed_liker(feed)
             if (index < follow_index):
@@ -398,7 +411,7 @@ class SureBot:
 
     # random time sleeper
     def __sleep(self):
-        s = random.choice(range(1, 4))
+        s = random.choice(range(1, 15))
         time.sleep(s)
 
     # adds offset seconds to time, plus random offset
