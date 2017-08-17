@@ -25,5 +25,5 @@ def new_like_all_exist_media(self):
         else:
             return False
     else:
-        print(('Too much liker for this media!!! LC = %i' % (l_c)))
+        print('Too much liker for this media!!! LC = %i' % (l_c))
         return True
