@@ -51,6 +51,8 @@ class SureBot:
         COMMENTS: [],
         UNFOLLOWS: []
     }
+    # the blacklist is where everyone we've interacted with goes
+    __BLACKLIST = []
     __UNFOLLOW_CURSOR = 0
     __LIKED = 0
     __FOLLOWED = 0
@@ -170,7 +172,6 @@ class SureBot:
         '''
         when max_media_count is <= 0, means unlimited
         '''
-        self.__sleep()
         print("Getting feed for \t", username)
         user = self.get_user_profile(username, True)
         if not self.__can_interact(user):
@@ -237,7 +238,7 @@ class SureBot:
         if not self.safe_limits(SureBot.LIKES):
             print('Likes limit reached for the day')
             return
-
+        
         """ Send http request to like media by ID """
         if self.bot.login_status:
             print('Liking a {0}: #{1}'.format(
@@ -341,6 +342,11 @@ class SureBot:
 
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1, depth=0):
+        if username in SureBot.__BLACKLIST:
+            print("Interacted with @{0} already, skipping...".format(username))
+            return
+
+        SureBot.__BLACKLIST.append(username)
         print("\nInteracting with @{0}".format(username))
         user = self.get_user_profile(username)
         if not self.__can_interact(user):
@@ -361,11 +367,16 @@ class SureBot:
                               max_followers, follow_rate, comment_rate, depth - 1)
                 # recursion above, do the digging!
             else:
+                if follower['username'] in SureBot.__BLACKLIST:
+                    print("Interacted with @{0} already, skipping...".format(follower['username']))
+                    return
+
                 feed = self.get_user_feed(follower['username'], max_likes)
                 self.feed_liker(feed)
                 if (index < follow_index):
                     self.follow(follower)
                 self.try_unfollow()
+                SureBot.__BLACKLIST.append(follower['username'])
             print('\n')
 
     # Privates ----------
