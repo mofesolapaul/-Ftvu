@@ -130,7 +130,7 @@ class SureBot:
 
         while (len(current_user_followers) < max_followers and has_next) or (has_next and max_followers <= 0):
             self.__sleep()
-            params = {'id': user['id'], 'first': 1}
+            params = {'id': user['id'], 'first': 5}
             if end_cursor:
                 params['after'] = end_cursor
                 # params['first'] = 10
@@ -363,6 +363,7 @@ class SureBot:
         follow_index = self.__to_follow(follow_rate, len(followers))
         for index, follower in enumerate(followers):
             if depth > 0:
+                self.__sleep(True)
                 self.interact(follower['username'], max_likes,
                               max_followers, follow_rate, comment_rate, depth - 1)
                 # recursion above, do the digging!
@@ -424,8 +425,9 @@ class SureBot:
                                                 SureBot.ENDPOINTS['insta_home'])
 
     # random time sleeper
-    def __sleep(self):
+    def __sleep(self, more=False):
         s = random.choice(range(1, 4))
+        if more: s = random.choice(range(5, 15))
         time.sleep(s)
 
     # adds offset seconds to time, plus random offset
