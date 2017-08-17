@@ -341,6 +341,7 @@ class SureBot:
 
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1, depth=0):
+        print("\nInteracting with @{0}".format(username))
         user = self.get_user_profile(username)
         if not self.__can_interact(user):
             print("Interaction impossible for @{0}".format(username))
@@ -355,8 +356,9 @@ class SureBot:
         # calculate follow_rate
         follow_index = self.__to_follow(follow_rate, len(followers))
         for index, follower in enumerate(followers):
-            self.interact(follower['username'], max_likes,
-                          max_followers, follow_rate, comment_rate, depth - 1)
+            if depth > 0:
+                self.interact(follower['username'], max_likes,
+                              max_followers, follow_rate, comment_rate, depth - 1)
             # recursion above, do the digging!
             feed = self.get_user_feed(follower['username'], max_likes)
             self.feed_liker(feed)
