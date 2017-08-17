@@ -71,9 +71,13 @@ class SureBot:
 
     # kill the bot
     def die(self):
-        while SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS]):
-            print('\nPrepping to die, but first... \n')
-            self.try_unfollow()
+        unfollow_first = SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS])
+        if unfollow_first:
+            print('\nPrepping to die, but first... I\'m trying to unfollow people 😜\n')
+            while unfollow_first:
+                self.try_unfollow()
+                unfollow_first = SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS])
+                self.__sleep()
 
         running_time = datetime.datetime.now() - self.start_time
         print('\nSureBot out 😎\n-----------------')
@@ -251,7 +255,6 @@ class SureBot:
             url_follow = self.bot.url_follow % (user['user_id'])
             try:
                 follow = self.bot.s.post(url_follow)
-                print(follow)
                 if follow.status_code == 200:
                     user['unfollow_at'] = self.__offset_time(1 * 60)[0]
                     self.__STATS[SureBot.FOLLOWS].append(user)

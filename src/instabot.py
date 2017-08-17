@@ -203,7 +203,7 @@ class InstaBot:
         self.login()
         self.populate_user_blacklist()
         signal.signal(signal.SIGTERM, self.cleanup)
-        atexit.register(self.cleanup)
+        # atexit.register(self.cleanup)
 
     def populate_user_blacklist(self):
         for user in self.user_blacklist:
