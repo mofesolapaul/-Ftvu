@@ -66,7 +66,7 @@ class SureBot:
     accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
 
     def __init__(self, username='', password=''):
-        print("SureBot reporting for duty! {}".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
+        print("👀 SureBot reporting for duty! {}\n".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
         # options
         self.start_time = datetime.datetime.now()
         self.username = username
@@ -481,8 +481,8 @@ class SureBot:
                                                 SureBot.ENDPOINTS['insta_home'])
 
     # random time sleeper
-    def __sleep(self):
-        s = random.choice(range(1, 4))
+    def __sleep(self, more=False):
+        s = random.choice(range(1, 4) if not more else range(5, 15))
         time.sleep(s)
 
     # adds offset seconds to time, plus random offset
