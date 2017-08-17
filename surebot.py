@@ -66,7 +66,7 @@ class SureBot:
     accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
 
     def __init__(self, username='', password=''):
-        print("👀 SureBot reporting for duty! {}\n".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
+        print("👀  SureBot reporting for duty! {}\n".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
         # options
         self.start_time = datetime.datetime.now()
         self.username = username
