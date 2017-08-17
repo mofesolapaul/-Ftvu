@@ -128,7 +128,7 @@ class SureBot:
 
         while (len(current_user_followers) < max_followers and has_next) or (has_next and max_followers <= 0):
             self.__sleep()
-            params = {'id': user['id'], 'first': 20}
+            params = {'id': user['id'], 'first': 1}
             if end_cursor:
                 params['after'] = end_cursor
                 # params['first'] = 10
@@ -184,7 +184,7 @@ class SureBot:
 
         while (len(current_user_media) < max_media_count and has_next) or (has_next and max_media_count <= 0):
             self.__sleep()
-            params = {'id': user['id'], 'first': 12}
+            params = {'id': user['id'], 'first': 5}
             if end_cursor:
                 params['after'] = end_cursor
 
@@ -359,12 +359,13 @@ class SureBot:
             if depth > 0:
                 self.interact(follower['username'], max_likes,
                               max_followers, follow_rate, comment_rate, depth - 1)
-            # recursion above, do the digging!
-            feed = self.get_user_feed(follower['username'], max_likes)
-            self.feed_liker(feed)
-            if (index < follow_index):
-                self.follow(follower)
-            self.try_unfollow()
+                # recursion above, do the digging!
+            else:
+                feed = self.get_user_feed(follower['username'], max_likes)
+                self.feed_liker(feed)
+                if (index < follow_index):
+                    self.follow(follower)
+                self.try_unfollow()
             print('\n')
 
     # Privates ----------
@@ -413,7 +414,7 @@ class SureBot:
 
     # random time sleeper
     def __sleep(self):
-        s = random.choice(range(1, 15))
+        s = random.choice(range(1, 4))
         time.sleep(s)
 
     # adds offset seconds to time, plus random offset
