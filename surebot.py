@@ -24,7 +24,7 @@ class SureBot:
     SIMILAR = 'similar'
     LIKES = 'likes'
     FOLLOWS = 'follows'
-    UNFOLLOWS = 'follows'
+    UNFOLLOWS = 'unfollows'
     COMMENTS = 'comments'
 
     LIMITS = {
@@ -71,6 +71,10 @@ class SureBot:
 
     # kill the bot
     def die(self):
+        while SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS]):
+            print('\nPrepping to die, but first... \n')
+            self.try_unfollow()
+
         running_time = datetime.datetime.now() - self.start_time
         print('\nSureBot out 😎\n-----------------')
         print('Running time: {0}\nTotal likes: {1}\nTotal follows: {2}\nTotal unfollows: {3}\nTotal comments: {4}\n'.format(
@@ -140,11 +144,12 @@ class SureBot:
             filtered = self.__filter_followers(
                 data['user']['edge_followed_by']['edges'])
             current_user_followers += filtered if filtered else []
+            current_user_followers = current_user_followers[:max_followers] if max_followers > 0 else current_user_followers
 
-            print("Fetched '{0}' of {1} follower(s)".format(
+            print("Fetched '{0}' of {1} follower(s)\n".format(
                 len(current_user_followers), data['user']['edge_followed_by']['count']))
 
-        return current_user_followers[:max_followers] if max_followers > 0 else current_user_followers
+        return current_user_followers
 
     # get user's feed
     def get_user_feed(self, username, max_media_count=20):
@@ -194,11 +199,12 @@ class SureBot:
             filtered = self.__filter_media(
                 data['user']['edge_owner_to_timeline_media']['edges'])
             current_user_media += filtered if filtered else []
+            current_user_media = current_user_media[:max_media_count] if max_media_count > 0 else current_user_media
 
-            print("Fetched '{0}' of {1} media".format(len(current_user_media),
+            print("Fetched '{0}' of {1} media\n".format(len(current_user_media),
                                                       data['user']['edge_owner_to_timeline_media']['count']))
 
-        return current_user_media[:max_media_count] if max_media_count > 0 else current_user_media
+        return current_user_media
 
     # likes a feed of media
     def feed_liker(self, feed):
@@ -223,8 +229,8 @@ class SureBot:
             try:
                 like = self.bot.s.post(url_likes)
                 self.__STATS[SureBot.LIKES].append(media)
-            except:
-                print("Like operation failed!")
+            except Exception as e:
+                print("Like operation failed! {0}".format(e.message))
                 like = 0
             return like
 
@@ -245,18 +251,19 @@ class SureBot:
             url_follow = self.bot.url_follow % (user['user_id'])
             try:
                 follow = self.bot.s.post(url_follow)
+                print(follow)
                 if follow.status_code == 200:
-                    user['unfollow_at'] = SureBot.__offset_time(1 * 60)[0]
+                    user['unfollow_at'] = self.__offset_time(1 * 60)[0]
                     self.__STATS[SureBot.FOLLOWS].append(user)
                 return follow
-            except:
-                print("Unable to follow!")
+            except Exception as e:
+                print("Unable to follow! {0}".format(e.message))
         return False
 
     # get information about a media item
-    def get_media_info(self, media_code):
+    def get_media_info(self, media_code, silent=True):
         self.__sleep()
-        print("Getting media info for \t", media_code)
+        if not silent: print("Getting media info for \t", media_code)
         response = self.bot.s.get(
             SureBot.ENDPOINTS['media'].format(media_code))
         if response.status_code != 200:
@@ -300,11 +307,11 @@ class SureBot:
                 if unfollow.status_code == 200:
                     self.__STATS[SureBot.UNFOLLOWS].append(user)
                 else:
-                    print("Unable to follow!")
+                    print("Unable to unfollow!")
                     return False
                 return True
-            except:
-                print("Unable to follow!")
+            except Exception as e:
+                print("Unable to unfollow! {0}".format(e.message))
         return False
 
     # interact with user's followers
@@ -318,6 +325,7 @@ class SureBot:
         for index,follower in enumerate(followers):
             feed = self.get_user_feed(follower['username'], max_likes)
             self.feed_liker(feed)
+            print('\n')
 
     # Privates ----------
 
