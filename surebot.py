@@ -299,13 +299,13 @@ class SureBot:
             return
         if not self.unfollow(current_user) and not current_user.has_key('failed'):
             current_user['failed'] = True
-            retry = self.__offset_time(range(15, 30))
+            retry = self.__offset_time(random.choice(range(15, 30)))
             current_user['unfollow_at'] = retry[0]
             print('Will retry in {0} secs'.format(retry[1]))
         else:
             SureBot.__UNFOLLOW_CURSOR += 1
             if (SureBot.__UNFOLLOW_CURSOR < len(self.__STATS[SureBot.FOLLOWS])):
-                nxt = self.__offset_time(range(15, 30))
+                nxt = self.__offset_time(random.choice(range(15, 30)))
                 nxt_user = dict(
                     self.__STATS[SureBot.FOLLOWS][SureBot.__UNFOLLOW_CURSOR])
                 if time.time() <= nxt_user['unfollow_at']:
@@ -331,12 +331,19 @@ class SureBot:
 
     # interact with user's followers
     def interact(self, username, max_likes=5, max_followers=5, follow_rate=.1, comment_rate=.1):
+        user = self.get_user_profile(username)
+        if not self.__can_interact(user):
+            print("Interaction impossible for @{0}".format(username))
+            return
         user_feed = self.get_user_feed(username, max_likes)
         self.feed_liker(user_feed)
+        # think of it as type casting
+        user = {'username': user['username'], 'user_id': user['id']}
+        self.follow(user)
 
         followers = self.get_user_followers(username, max_followers)
         # calculate follow_rate
-        follow_index = self.__to_follow(follow_rate, followers)
+        follow_index = self.__to_follow(follow_rate, len(followers))
         for index, follower in enumerate(followers):
             feed = self.get_user_feed(follower['username'], max_likes)
             self.feed_liker(feed)
@@ -396,7 +403,7 @@ class SureBot:
 
     # adds offset seconds to time, plus random offset
     def __offset_time(self, offset=0):
-        offset = offset + random.choice(range(0, 15))
+        offset += random.choice(range(0, 15))
         return int(time.time()) + offset, offset
 
     # determine if this person can be followed
@@ -409,5 +416,5 @@ class SureBot:
 
     # determines how many people to follow
     def __to_follow(self, rate, popu):
-        i = int(math.ceil(rate * popu))
+        i = int(math.floor(rate * popu))
         return i if i > 0 else 1
