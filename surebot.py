@@ -10,10 +10,7 @@ import random
 import datetime
 import atexit
 import math
-
-sys.path.append(os.path.join(sys.path[0], 'src'))
-from instabot import InstaBot
-
+import requests
 
 class SureBot:
 
@@ -42,7 +39,13 @@ class SureBot:
         'insta_home': 'https://www.instagram.com',
         'user_profile': 'https://www.instagram.com/{0}/?__a=1',
         'graphql': '/graphql/query/',
-        'media': 'https://www.instagram.com/p/{0}/?__a=1'
+        'media': 'https://www.instagram.com/p/{0}/?__a=1',
+        'url_likes': 'https://www.instagram.com/web/likes/{0}/like/',
+        'url_comment': 'https://www.instagram.com/web/comments/{0}/add/',
+        'url_follow': 'https://www.instagram.com/web/friendships/{0}/follow/',
+        'url_unfollow': 'https://www.instagram.com/web/friendships/{0}/unfollow/',
+        'url_login': 'https://www.instagram.com/accounts/login/ajax/',
+        'url_logout': 'https://www.instagram.com/accounts/logout/'
     }
     __STATS = {
         LIKES: [],
@@ -57,23 +60,79 @@ class SureBot:
     __FOLLOWED = 0
     __UNFOLLOWED = 0
     __COMMENTED = 0
+    # browser things
+    user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
+    accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
 
     def __init__(self, username='', password=''):
+        print("SureBot reporting for duty! {}".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
         # options
         self.start_time = datetime.datetime.now()
         self.username = username
         self.user_key = password
         self.my_profile = None
 
+        # session
+        self.s = requests.Session()
+        self.login_status = False
+
         # at exit
         atexit.register(self.die)
 
         # attempt login
-        self.bot = InstaBot(login=self.username,
-                            password=self.user_key, log_mod=0)
-        if self.bot.login_status != True:
+        self.login()
+        if self.login_status != True:
             print('Login failed')
             self.die()
+
+    def login(self):
+        print('Trying to login as {}...\n'.format(self.username))
+        self.s.cookies.update({
+            'sessionid': '',
+            'mid': '',
+            'ig_pr': '1',
+            'ig_vw': '1920',
+            'csrftoken': '',
+            's_network': '',
+            'ds_user_id': ''
+        })
+        self.login_params = {
+            'username': self.username,
+            'password': self.user_key
+        }
+        self.s.headers.update({
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': self.accept_language,
+            'Connection': 'keep-alive',
+            'Content-Length': '0',
+            'Host': 'www.instagram.com',
+            'Origin': 'https://www.instagram.com',
+            'Referer': 'https://www.instagram.com/',
+            'User-Agent': self.user_agent,
+            'X-Instagram-AJAX': '1',
+            'X-Requested-With': 'XMLHttpRequest'
+        })
+        r = self.s.get(self.ENDPOINTS['insta_home'])
+        self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
+        self.__sleep()
+        
+        login = self.s.post(self.ENDPOINTS['url_login'], data=self.login_params, allow_redirects=True)
+        self.s.headers.update({'X-CSRFToken': login.cookies['csrftoken']})
+        self.csrftoken = login.cookies['csrftoken']
+        self.__sleep()
+
+        if login.status_code == 200:
+            r = self.s.get(self.ENDPOINTS['insta_home'])
+            finder = r.text.find(self.username)
+            if finder != -1:
+                self.login_status = True
+                print('{} login success!'.format(self.username))
+            else:
+                self.login_status = False
+                print('Login error! Check your login data!')
+        else:
+            print('Login error! Connection error!')
 
     # kill the bot
     def die(self):
@@ -94,14 +153,13 @@ class SureBot:
             SureBot.__FOLLOWED,
             SureBot.__UNFOLLOWED,
             SureBot.__COMMENTED))
-        self.bot.cleanup()
-
+        
     # get user's profile
     def get_user_profile(self, username, silent=False):
         self.__sleep()
         if not silent:
             print("GET USER PROFILE @{0}".format(username))
-        response = self.bot.s.get(
+        response = self.s.get(
             SureBot.ENDPOINTS['user_profile'].format(username))
         if response.status_code != 200:
             if not silent:
@@ -134,7 +192,7 @@ class SureBot:
                 params['after'] = end_cursor
                 # params['first'] = 10
 
-            response = self.bot.s.get(self.__build_query(params))
+            response = self.s.get(self.__build_query(params))
             if response.status_code != 200:
                 print("Followers for @{} could not be fetched: {} ({})".format(
                     username, response.status_code, response.text))
@@ -175,7 +233,8 @@ class SureBot:
         print("Getting feed for \t", username)
         user = self.get_user_profile(username, True)
         if not self.__can_interact(user):
-            print("@{0} not found, or is a private account, or they've blocked you!".format(username))
+            print("@{0} not found, or is a private account, or they've blocked you!".format(
+                username))
             return
 
         current_user_media = []
@@ -189,7 +248,7 @@ class SureBot:
                 params['after'] = end_cursor
 
             query = self.__build_query(params, SureBot.MEDIA)
-            response = self.bot.s.get(query)
+            response = self.s.get(query)
             if response.status_code != 200:
                 print("Media feed for @{} could not be fetched: {} ({})".format(
                     username, response.status_code, response.text))
@@ -217,7 +276,7 @@ class SureBot:
                                                     max_media_count] if max_media_count > 0 else current_user_media
 
             print("Fetched '{0}' of {1} media\n".format(len(current_user_media),
-                                                         data['user']['edge_owner_to_timeline_media']['count']))
+                                                        data['user']['edge_owner_to_timeline_media']['count']))
 
         return current_user_media
 
@@ -238,12 +297,12 @@ class SureBot:
             return
 
         """ Send http request to like media by ID """
-        if self.bot.login_status:
+        if self.login_status:
             print('Liking a {0}: #{1}'.format(
                 media['media_type'], SureBot.__LIKED + 1))
-            url_likes = self.bot.url_likes % (media['media_id'])
+            url_likes = self.ENDPOINTS['url_likes'].format(media['media_id'])
             try:
-                like = self.bot.s.post(url_likes)
+                like = self.s.post(url_likes)
                 self.__STATS[SureBot.LIKES].append(media)
                 SureBot.__LIKED += 1
             except Exception as e:
@@ -258,7 +317,7 @@ class SureBot:
             return
 
         """ Send http request to follow """
-        if self.bot.login_status:
+        if self.login_status:
             print('Trying to follow @{0}: #{1}'.format(
                 user['username'], SureBot.__FOLLOWED + 1))
             u = self.get_user_profile(user['username'], True)
@@ -266,10 +325,10 @@ class SureBot:
                 print("Cannot follow @{0}".format(user['username']))
                 return False
 
-            url_follow = self.bot.url_follow % (user['user_id'])
+            url_follow = self.ENDPOINTS['url_follow'].format(user['user_id'])
             try:
                 self.__sleep()
-                follow = self.bot.s.post(url_follow)
+                follow = self.s.post(url_follow)
                 if follow.status_code == 200:
                     user['unfollow_at'] = self.__offset_time(1 * 60)[0]
                     self.__STATS[SureBot.FOLLOWS].append(user)
@@ -284,7 +343,7 @@ class SureBot:
         self.__sleep()
         if not silent:
             print("Getting media info for \t", media_code)
-        response = self.bot.s.get(
+        response = self.s.get(
             SureBot.ENDPOINTS['media'].format(media_code))
         if response.status_code != 200:
             print("Media not found: {0}".format(response.status_code))
@@ -322,12 +381,12 @@ class SureBot:
     # unfollows a user
     def unfollow(self, user):
         """ Send http request to unfollow """
-        if self.bot.login_status:
+        if self.login_status:
             print('Unfollowing @{0}: #{1}'.format(
                 user['username'], SureBot.__UNFOLLOWED + 1))
-            url_unfollow = self.bot.url_unfollow % (user['user_id'])
+            url_unfollow = self.ENDPOINTS['url_unfollow'].format(user['user_id'])
             try:
-                unfollow = self.bot.s.post(url_unfollow)
+                unfollow = self.s.post(url_unfollow)
                 if unfollow.status_code == 200:
                     self.__STATS[SureBot.UNFOLLOWS].append(user)
                 else:
