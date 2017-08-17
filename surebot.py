@@ -11,8 +11,7 @@ import datetime
 import atexit
 import math
 
-sys.path.append(os.path.join(sys.path[0], 'src'))
-from instabot import InstaBot
+from src.instabot import InstaBot
 
 
 class SureBot:
@@ -175,7 +174,8 @@ class SureBot:
         print("Getting feed for \t", username)
         user = self.get_user_profile(username, True)
         if not self.__can_interact(user):
-            print("@{0} not found, or is a private account, or they've blocked you!".format(username))
+            print("@{0} not found, or is a private account, or they've blocked you!".format(
+                username))
             return
 
         current_user_media = []
@@ -217,7 +217,7 @@ class SureBot:
                                                     max_media_count] if max_media_count > 0 else current_user_media
 
             print("Fetched '{0}' of {1} media\n".format(len(current_user_media),
-                                                         data['user']['edge_owner_to_timeline_media']['count']))
+                                                        data['user']['edge_owner_to_timeline_media']['count']))
 
         return current_user_media
 
@@ -253,11 +253,11 @@ class SureBot:
 
     # follow a user
     def follow(self, user):
+        """ Send http request to follow """
         if not self.safe_limits(SureBot.FOLLOWS):
             print('Follows limit reached for the day')
             return
 
-        """ Send http request to follow """
         if self.bot.login_status:
             print('Trying to follow @{0}: #{1}'.format(
                 user['username'], SureBot.__FOLLOWED + 1))
