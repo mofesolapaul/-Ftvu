@@ -11,6 +11,8 @@ import datetime
 import atexit
 import math
 import requests
+import re
+import string
 
 
 class SureBot:
@@ -66,12 +68,13 @@ class SureBot:
                   "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
     accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
     # options
-    __COMMENTS_TEMPLATE = [['This', 'The'], ['post', 'pic', 'photo', 'story'], ['is', 'was', 'really is'], [
-        'nice', 'wow', 'cool', 'brilliant', 'impressive', 'cool', 'inspiring'], ['.', '!', '!!!', '...']]
+    __COMMENTS_TEMPLATE = [['This', 'The', 'Your'], ['post', 'pic', 'photo', 'story'], ['is', 'is very', 'was very', 'was', 'really is'], [
+        'nice', 'wow', 'cool', 'brilliant', 'impressive', 'cool', 'inspiring', 'incredible'], ['.', '!', '!!!', '...']]
 
     def __init__(self, username='', password=''):
         print("👀  SureBot reporting for duty! {}\n".format(
             datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
+        
         # options
         self.start_time = datetime.datetime.now()
         self.username = username
@@ -512,5 +515,6 @@ class SureBot:
 
     # generates a nice comment 😉
     def __build_comment(self):
-        comment = []
-        return
+        punc = re.compile('\s+([{}]+)$'.format(re.escape(string.punctuation)))
+        cmt = ' '.join(random.choice(c) for c in SureBot.__COMMENTS_TEMPLATE)
+        return re.sub(punc, r'\1', cmt)
