@@ -12,6 +12,7 @@ import atexit
 import math
 import requests
 
+
 class SureBot:
 
     # consts
@@ -64,9 +65,13 @@ class SureBot:
     user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
     accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
+    # options
+    __COMMENTS_TEMPLATE = [['This', 'The'], ['post', 'pic', 'photo', 'story'], ['is', 'was', 'really is'], [
+        'nice', 'wow', 'cool', 'brilliant', 'impressive', 'cool', 'inspiring'], ['.', '!', '!!!', '...']]
 
     def __init__(self, username='', password=''):
-        print("👀  SureBot reporting for duty! {}\n".format(datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
+        print("👀  SureBot reporting for duty! {}\n".format(
+            datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
         # options
         self.start_time = datetime.datetime.now()
         self.username = username
@@ -116,8 +121,9 @@ class SureBot:
         r = self.s.get(self.ENDPOINTS['insta_home'])
         self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
         self.__sleep()
-        
-        login = self.s.post(self.ENDPOINTS['url_login'], data=self.login_params, allow_redirects=True)
+
+        login = self.s.post(
+            self.ENDPOINTS['url_login'], data=self.login_params, allow_redirects=True)
         self.s.headers.update({'X-CSRFToken': login.cookies['csrftoken']})
         self.csrftoken = login.cookies['csrftoken']
         self.__sleep()
@@ -153,7 +159,7 @@ class SureBot:
             SureBot.__FOLLOWED,
             SureBot.__UNFOLLOWED,
             SureBot.__COMMENTED))
-        
+
     # get user's profile
     def get_user_profile(self, username, silent=False):
         self.__sleep()
@@ -384,7 +390,8 @@ class SureBot:
         if self.login_status:
             print('Unfollowing @{0}: #{1}'.format(
                 user['username'], SureBot.__UNFOLLOWED + 1))
-            url_unfollow = self.ENDPOINTS['url_unfollow'].format(user['user_id'])
+            url_unfollow = self.ENDPOINTS['url_unfollow'].format(
+                user['user_id'])
             try:
                 unfollow = self.s.post(url_unfollow)
                 if unfollow.status_code == 200:
@@ -502,3 +509,8 @@ class SureBot:
     def __to_follow(self, rate, popu):
         i = int(math.floor(rate * popu))
         return i if i > 0 else 1
+
+    # generates a nice comment 😉
+    def __build_comment(self):
+        comment = []
+        return
