@@ -100,3 +100,4 @@ ENV/
 .vscode/
 playground.py
 config.ini
+*.pyc
