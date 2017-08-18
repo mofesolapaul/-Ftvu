@@ -101,4 +101,4 @@ ENV/
 playground.py
 config.ini
 *.pyc
-src
+src/
