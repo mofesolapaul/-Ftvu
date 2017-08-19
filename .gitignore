@@ -98,5 +98,7 @@ ENV/
 .idea/
 *.iml
 .vscode/
-playground.py
 config.ini
+*.pyc
+src/
+/src/
