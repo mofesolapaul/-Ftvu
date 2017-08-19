@@ -15,7 +15,6 @@ import re
 import string
 
 from src.instabot import InstaBot
-
 class SureBot:
 
     # consts

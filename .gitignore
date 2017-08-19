@@ -100,5 +100,5 @@ ENV/
 .vscode/
 config.ini
 *.pyc
-src/
-/src/
+# src/
+# /src/
